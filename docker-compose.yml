@@ -1,0 +1,36 @@
+services:
+  pwgen:
+    image: nginx:1.27-alpine
+    container_name: pwgen
+    restart: unless-stopped
+    volumes:
+      - ./index.html:/usr/share/nginx/html/index.html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/healthz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    networks:
+      - traefik
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik
+      - traefik.http.routers.pwgen.rule=Host(`pw.sandiaz.my.id`)
+      - traefik.http.routers.pwgen.entrypoints=websecure
+      - traefik.http.routers.pwgen.tls=true
+      # - traefik.http.routers.pwgen.tls.certresolver=letsencrypt
+      # Aktifkan kalau mau dilindungi Authelia (sesuaikan nama middleware-nya):
+      # - traefik.http.routers.pwgen.middlewares=authelia@docker
+      - traefik.http.services.pwgen.loadbalancer.server.port=80
+
+networks:
+  traefik:
+    external: true   # ganti dengan nama network Traefik yang sudah ada

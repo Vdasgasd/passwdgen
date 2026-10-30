@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Password Generator</title>
+<style>
+:root{color-scheme:light;--bg:#eef2f5;--surface:#fff;--ink:#14212b;--muted:#5d6c78;--line:#d3dce3;--accent:#0b7a75;--accent-ink:#fff;--warn:#b4412b;--ok:#2e7d4f;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#10181e;--surface:#18232b;--ink:#e6edf2;--muted:#93a3af;--line:#2a3944;--accent:#3fc2b8;--accent-ink:#06201e;--warn:#ef8b72;--ok:#6fcf97}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#10181e;--surface:#18232b;--ink:#e6edf2;--muted:#93a3af;--line:#2a3944;--accent:#3fc2b8;--accent-ink:#06201e;--warn:#ef8b72;--ok:#6fcf97}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:640px;margin:0 auto;padding:24px 16px 48px}
+h1{font-size:1.5rem;margin:0 0 4px;letter-spacing:-.01em}
+.sub{color:var(--muted);margin:0 0 20px;font-size:.95rem}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:16px}
+.out{display:flex;gap:8px;align-items:stretch}
+#pw{flex:1;min-width:0;font:600 1.25rem/1.4 ui-monospace,"SF Mono",Menlo,Consolas,monospace;word-break:break-all;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--bg);min-height:3.4em;display:flex;align-items:center}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:8px 14px}
+button:hover{border-color:var(--accent)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.out button{white-space:nowrap}
+.meter{height:6px;border-radius:3px;background:var(--line);margin:12px 0 4px;overflow:hidden}
+.meter i{display:block;height:100%;width:0;background:var(--warn);transition:width .2s,background .2s}
+.entropy{font-size:.85rem;color:var(--muted)}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:14px 0 0}
+.row label{display:flex;align-items:center;gap:8px;cursor:pointer}
+input[type=range]{width:100%;accent-color:var(--accent)}
+input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent)}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;margin-top:14px}
+.opts label{display:flex;align-items:center;gap:8px;cursor:pointer}
+.bar{display:flex;gap:8px;margin-top:16px}
+.bar .primary{flex:1;padding:11px}
+.hhead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.hhead h2{font-size:1.05rem;margin:0}
+.hhead div{display:flex;gap:8px}
+.hhead button{padding:5px 10px;font-size:.85rem}
+ul{list-style:none;margin:0;padding:0}
+li{display:flex;gap:8px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
+li:first-child{border-top:0}
+.pv{flex:1;min-width:0}
+.pv code{display:block;font:.95rem/1.35 ui-monospace,"SF Mono",Menlo,Consolas,monospace;word-break:break-all}
+.pv small{color:var(--muted);font-size:.78rem}
+li button{padding:4px 9px;font-size:.82rem}
+.empty{color:var(--muted);margin:8px 0 0}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:8px;opacity:0;pointer-events:none;transition:opacity .15s;font-size:.9rem}
+.toast.on{opacity:1}
+.note{color:var(--muted);font-size:.82rem;margin:0}
+</style>
+</head>
+<body>
+<main>
+<h1>Password generator</h1>
+<p class="sub">Semua dibuat di browser kamu. Tidak ada yang dikirim ke server.</p>
+
+<section class="panel" aria-label="Hasil">
+  <div class="out">
+    <div id="pw" aria-live="polite"></div>
+    <button id="copy" type="button">Salin</button>
+  </div>
+  <div class="meter"><i id="bar"></i></div>
+  <div class="entropy" id="ent"></div>
+</section>
+
+<section class="panel" aria-label="Pengaturan">
+  <div class="row" style="margin-top:0"><label for="len">Panjang</label><strong id="lenv">20</strong></div>
+  <input id="len" type="range" min="8" max="64" value="20">
+  <div class="opts">
+    <label><input type="checkbox" id="up" checked> Huruf besar</label>
+    <label><input type="checkbox" id="lo" checked> Huruf kecil</label>
+    <label><input type="checkbox" id="di" checked> Angka</label>
+    <label><input type="checkbox" id="sy" checked> Simbol</label>
+    <label><input type="checkbox" id="am"> Hindari mirip (O/0, l/1/I)</label>
+  </div>
+  <div class="bar"><button class="primary" id="gen" type="button">Generate</button></div>
+</section>
+
+<section class="panel" aria-label="Riwayat">
+  <div class="hhead">
+    <h2>Riwayat <span id="cnt" style="color:var(--muted);font-weight:400"></span></h2>
+    <div>
+      <button id="reveal" type="button">Tampilkan</button>
+      <button id="clear" type="button">Hapus semua</button>
+    </div>
+  </div>
+  <ul id="hist"></ul>
+  <p class="empty" id="empty">Belum ada password yang dibuat.</p>
+  <p class="note" style="margin-top:12px">Riwayat disimpan polos di localStorage browser ini. Hapus kalau pakai perangkat bersama.</p>
+</section>
+</main>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function(){
+var $=function(i){return document.getElementById(i)};
+var KEY="pwgen:history", MAX=50;
+var sets={up:"ABCDEFGHIJKLMNOPQRSTUVWXYZ",lo:"abcdefghijklmnopqrstuvwxyz",di:"0123456789",sy:"!@#$%^&*()-_=+[]{};:,.?/~"};
+var ambiguous=/[O0oIl1|]/g;
+var history=[], shown=false, current="";
+
+function load(){try{var r=localStorage.getItem(KEY);var a=r?JSON.parse(r):[];if(Array.isArray(a))history=a.filter(function(x){return x&&typeof x.p==="string"})}catch(e){history=[]}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(history))}catch(e){}}
+
+function rnd(n){ // unbiased random int in [0,n)
+  var max=Math.floor(4294967296/n)*n, b=new Uint32Array(1);
+  do{crypto.getRandomValues(b)}while(b[0]>=max);
+  return b[0]%n;
+}
+function pools(){
+  var am=$("am").checked, out=[];
+  ["up","lo","di","sy"].forEach(function(k){
+    if($(k).checked){var s=sets[k];if(am)s=s.replace(ambiguous,"");if(s)out.push(s)}
+  });
+  return out;
+}
+function make(){
+  var p=pools(), len=+$("len").value;
+  if(!p.length)return null;
+  var all=p.join(""), chars=[];
+  p.forEach(function(s){chars.push(s[rnd(s.length)])});
+  while(chars.length<len)chars.push(all[rnd(all.length)]);
+  for(var i=chars.length-1;i>0;i--){var j=rnd(i+1),t=chars[i];chars[i]=chars[j];chars[j]=t}
+  return {pw:chars.join(""),size:all.length};
+}
+function strength(len,size){
+  var bits=Math.round(len*Math.log2(size));
+  var lvl=bits<50?["Lemah",20,"var(--warn)"]:bits<80?["Cukup",50,"#c88a1a"]:bits<110?["Kuat",78,"var(--ok)"]:["Sangat kuat",100,"var(--ok)"];
+  return {bits:bits,label:lvl[0],pct:lvl[1],color:lvl[2]};
+}
+function toast(t){var e=$("toast");e.textContent=t;e.classList.add("on");clearTimeout(toast.t);toast.t=setTimeout(function(){e.classList.remove("on")},1300)}
+function copy(t){
+  var done=function(){toast("Tersalin")};
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(done,fallback)}else fallback();
+  function fallback(){var a=document.createElement("textarea");a.value=t;a.style.position="fixed";a.style.opacity="0";document.body.appendChild(a);a.select();try{document.execCommand("copy");done()}catch(e){toast("Gagal menyalin")}document.body.removeChild(a)}
+}
+function fmt(ts){var d=new Date(ts);return d.toLocaleDateString("id-ID",{day:"2-digit",month:"short"})+" "+d.toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})}
+
+function renderHist(){
+  var ul=$("hist");ul.innerHTML="";
+  $("empty").style.display=history.length?"none":"block";
+  $("cnt").textContent=history.length?"("+history.length+")":"";
+  $("reveal").textContent=shown?"Sembunyikan":"Tampilkan";
+  history.forEach(function(h,i){
+    var li=document.createElement("li");
+    var pv=document.createElement("div");pv.className="pv";
+    var c=document.createElement("code");c.textContent=shown?h.p:"•".repeat(Math.min(h.p.length,24));
+    var s=document.createElement("small");s.textContent=fmt(h.t)+" · "+h.p.length+" karakter";
+    pv.appendChild(c);pv.appendChild(s);
+    var b1=document.createElement("button");b1.type="button";b1.textContent="Salin";b1.onclick=function(){copy(h.p)};
+    var b2=document.createElement("button");b2.type="button";b2.textContent="Hapus";b2.onclick=function(){history.splice(i,1);save();renderHist()};
+    li.appendChild(pv);li.appendChild(b1);li.appendChild(b2);ul.appendChild(li);
+  });
+}
+function generate(){
+  var r=make();
+  if(!r){$("pw").textContent="Pilih minimal satu jenis karakter";$("bar").style.width="0";$("ent").textContent="";current="";return}
+  current=r.pw;$("pw").textContent=r.pw;
+  var s=strength(r.pw.length,r.size);
+  $("bar").style.width=s.pct+"%";$("bar").style.background=s.color;
+  $("ent").textContent=s.label+" · sekitar "+s.bits+" bit entropi";
+  history.unshift({p:r.pw,t:Date.now()});
+  if(history.length>MAX)history.length=MAX;
+  save();renderHist();
+}
+
+$("len").addEventListener("input",function(){$("lenv").textContent=this.value});
+$("len").addEventListener("change",generate);
+["up","lo","di","sy","am"].forEach(function(k){$(k).addEventListener("change",generate)});
+$("gen").onclick=generate;
+$("copy").onclick=function(){if(current)copy(current)};
+$("reveal").onclick=function(){shown=!shown;renderHist()};
+$("clear").onclick=function(){if(!history.length)return;if(confirm("Hapus semua riwayat?")){history=[];save();renderHist()}};
+
+load();renderHist();generate();
+})();
+</script>
+</body>
+</html>
